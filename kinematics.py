@@ -2,9 +2,13 @@ from math import cos, atan
 from math import sin
 from math import pi
 import os
+from dotenv import load_dotenv, dotenv_values
+load_dotenv()
 
-os.environ["TCL_LIBRARY"] = r"C:\Users\Sigillian\AppData\Local\Programs\Python\Python313\tcl\tcl8.6"
-os.environ["TK_LIBRARY"] = r"C:\Users\Sigillian\AppData\Local\Programs\Python\Python313\tcl\tk8.6"
+tcl = str(os.getenv("TCL_LIBRARY"))
+tK = str(os.getenv("TK_LIBRARY"))
+os.environ["TCL_LIBRARY"] = tcl
+os.environ["TK_LIBRARY"] = tK
 
 import tkinter as tk
 
@@ -17,8 +21,8 @@ def flat_wheel (tank: bool, left_x: float, left_y: float, right_x: float, right_
 
     # left stick forward/backward, right stick turn
     def differential_drive () -> list[float]:
-        left = left_y - right_x
-        right = left_y + right_x
+        left = left_y + right_x
+        right = left_y - right_x
 
         #normalize between [1, -1]
         equalizer = max(left, right)
