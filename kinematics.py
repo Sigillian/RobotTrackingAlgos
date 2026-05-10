@@ -1,4 +1,4 @@
-from math import cos
+from math import cos, atan
 from math import sin
 from math import pi
 import os
@@ -58,16 +58,16 @@ def holonomic_wheel (field_oriented: bool, left_x: float, left_y: float, right_x
     def field_oriented_drive () -> list[float]:
         #apply rotational matrix
         lateral_global = left_x * cos(current_heading) - left_y * sin(current_heading)
-        forward_local = left_x * sin(current_heading) + left_y * cos(current_heading)
+        forward_global = left_x * sin(current_heading) + left_y * cos(current_heading)
 
         #when moving forward, front_left will move forward (+)
         #when moving right, front_left will move backward (-)
         #when turning right, front_left will move forward (+)
         #same logic applies to other wheels
-        front_left  = forward_local - lateral_global + right_x
-        back_left   = forward_local + lateral_global + right_x
-        front_right = forward_local + lateral_global - right_x
-        back_right  = forward_local - lateral_global - right_x
+        front_left  = forward_global - lateral_global + right_x
+        back_left   = forward_global + lateral_global + right_x
+        front_right = forward_global + lateral_global - right_x
+        back_right  = forward_global - lateral_global - right_x
 
         #normalize between [-1,1]
         equalizer = max(max(front_left, back_left), max(front_right, back_right))
@@ -83,6 +83,55 @@ def holonomic_wheel (field_oriented: bool, left_x: float, left_y: float, right_x
     else:
         return robot_oriented_drive()
 
+#return list will be [front_left, back_left, front_right, back_right]
+def kiwi_drive (field_oriented: bool, left_x: float, left_y: float, right_x: float, right_y: float, current_heading: float) -> list[float]:
+    # will NOT normalize forward/backward/side
+    def robot_oriented_drive() -> list[float]:
+        front_left  = left_y + left_x + right_x
+        back_left   = left_y - left_x + right_x
+        front_right = left_y - left_x - right_x
+        back_right  = left_y + left_x - right_x
+
+        # normalize between [-1,1]
+        equalizer = max(max(front_left, back_left), max(front_right, back_right))
+        if abs(equalizer) > 1:
+            front_left /= equalizer
+            back_left /= equalizer
+            front_right /= equalizer
+            back_right /= equalizer
+
+        return [front_left, back_left, front_right, back_right]
+
+    # normalizes so that, even when the bot is turned, forward is still forward.
+    def field_oriented_drive() -> list[float]:
+        # apply rotational matrix
+        lateral_global = left_x * cos(current_heading) - left_y * sin(current_heading)
+        forward_local = left_x * sin(current_heading) + left_y * cos(current_heading)
+
+        # when moving forward, front_left will move forward (+)
+        # when moving right, front_left will move backward (+)
+        # when turning right, front_left will move forward (+)
+        # same logic applies to other wheels
+        front_left  = forward_local + lateral_global + right_x
+        back_left   = forward_local - lateral_global + right_x
+        front_right = forward_local - lateral_global - right_x
+        back_right  = forward_local + lateral_global - right_x
+
+        # normalize between [-1,1]
+        equalizer = max(max(front_left, back_left), max(front_right, back_right))
+        if abs(equalizer) > 1:
+            front_left /= equalizer
+            back_left /= equalizer
+            front_right /= equalizer
+            back_right /= equalizer
+
+        return [front_left, back_left, front_right, back_right]
+
+    if field_oriented:
+        return field_oriented_drive()
+    else:
+        return robot_oriented_drive()
+
 
 def interactive_test () :
     wheels = int(input(
@@ -90,11 +139,12 @@ def interactive_test () :
 Select a wheel set:
  - Normal  (1)
  - Mecanum (2)
+ - Kiwi (3)
 """
     ))
 
     drive = int(input(
-        " - Field oriented (1)\n - Robot oriented (2)" if wheels == 2 else " - Tank (1)\n - Differential (2)\n"
+        " - Field oriented (1)\n - Robot oriented (2)" if wheels != 1 else " - Tank (1)\n - Differential (2)\n"
     ))
 
     def create_popup():
@@ -164,7 +214,7 @@ Select a wheel set:
                     right_y=right_y,
                 )
                 wheel_values = [powers[0], powers[0], powers[1], powers[1]]
-            else:
+            if wheels == 2:
                 wheel_values = holonomic_wheel(
                     field_oriented=(drive == 1),
                     left_x=left_x,
@@ -173,6 +223,16 @@ Select a wheel set:
                     right_y=right_y,
                     current_heading=heading,
                 )
+            if wheels == 3:
+                wheel_values = kiwi_drive(
+                    field_oriented=(drive == 1),
+                    left_x=left_x,
+                    left_y=left_y,
+                    right_x=right_x,
+                    right_y=right_y,
+                    current_heading=heading,
+                )
+
 
             # body
             body_size = 90
