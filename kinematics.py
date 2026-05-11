@@ -1,8 +1,8 @@
-from math import cos, atan
+from math import cos
 from math import sin
 from math import pi
 import os
-from dotenv import load_dotenv, dotenv_values
+from dotenv import load_dotenv
 load_dotenv()
 
 tcl = str(os.getenv("TCL_LIBRARY"))
@@ -88,7 +88,7 @@ def holonomic_wheel (field_oriented: bool, left_x: float, left_y: float, right_x
         return robot_oriented_drive()
 
 #return list will be [front_left, back_left, front_right, back_right]
-def kiwi_drive (field_oriented: bool, left_x: float, left_y: float, right_x: float, right_y: float, current_heading: float) -> list[float]:
+def quad_kiwi_drive (field_oriented: bool, left_x: float, left_y: float, right_x: float, right_y: float, current_heading: float) -> list[float]:
     # will NOT normalize forward/backward/side
     def robot_oriented_drive() -> list[float]:
         front_left  = left_y + left_x + right_x
@@ -135,6 +135,45 @@ def kiwi_drive (field_oriented: bool, left_x: float, left_y: float, right_x: flo
         return field_oriented_drive()
     else:
         return robot_oriented_drive()
+
+#return list will be [back, left, right]
+def triple_kiwi_drive (field_oriented: bool, left_x: float, left_y: float, right_x: float, right_y: float, current_heading: float) -> list[float]:
+    # apply rotational matrix if field oriented
+    if field_oriented:
+        lat_x = left_x * cos(current_heading) - left_y * sin(current_heading)
+        left_y = left_x * sin(current_heading) + left_y * cos(current_heading)
+        left_x = lat_x
+    right = right_x + left_x - left_y
+    left = left_y + right_x + left_x
+    #back wheel exists only to help turn or strafe
+    back = right_x - left_x
+
+    equalizer = max(max(back, left), right)
+    if abs(equalizer) > 1:
+        back /= equalizer
+        left /= equalizer
+        right /= equalizer
+
+    return [back, left, right]
+
+#return list will be the wheels counterclockwise, assuming the front of the robot is the point of the normal pentagon and wheel zero
+#see README for diagram
+def penta_kiwi_drive (field_oriented:bool, left_x: float, left_y: float, right_x: float, right_y: float, current_heading: float) -> list[float]:
+    # apply rotational matrix if field oriented
+    if field_oriented:
+        lat_x = left_x * cos(current_heading) - left_y * sin(current_heading)
+        left_y = left_x * sin(current_heading) + left_y * cos(current_heading)
+        left_x = lat_x
+
+    zero = left_x + right_x
+    one = right_x + left_x - left_y
+    two = right_x - left_y - left_x
+    three = left_y - left_x + right_x
+    four = left_y+ right_x+ left_x
+
+    return [zero, one, two, three, four]
+
+
 
 
 def interactive_test () :
@@ -228,7 +267,7 @@ Select a wheel set:
                     current_heading=heading,
                 )
             if wheels == 3:
-                wheel_values = kiwi_drive(
+                wheel_values = quad_kiwi_drive(
                     field_oriented=(drive == 1),
                     left_x=left_x,
                     left_y=left_y,
@@ -316,8 +355,6 @@ Select a wheel set:
         render()
         root.mainloop()
     create_popup()
-
-
 
 
 interactive_test()
